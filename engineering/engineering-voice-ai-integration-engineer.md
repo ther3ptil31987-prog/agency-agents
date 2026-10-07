@@ -363,6 +363,7 @@ def assign_speakers(transcript_segments: list[TranscriptSegment],
 ```python
 import json
 import re
+import math
 
 def normalize_transcript(segments: list[TranscriptSegment]) -> list[TranscriptSegment]:
     """
@@ -389,20 +390,28 @@ def export_srt(segments: list[TranscriptSegment], output_path: str) -> str:
     """
     Export transcript as SRT subtitle file.
 
-    Validates reading speed (max 20 chars/second per broadcast standard).
-    Splits long segments to comply with line length limits.
+    Serializes validated cue times at millisecond precision.
+    Reading-speed and line-length checks belong to the application adapter;
+    this serialization example preserves the supplied text without splitting.
     """
     def format_timestamp(seconds: float) -> str:
-        h = int(seconds // 3600)
-        m = int((seconds % 3600) // 60)
-        s = int(seconds % 60)
-        ms = int((seconds % 1) * 1000)
+        if not math.isfinite(seconds) or seconds < 0:
+            raise ValueError("Subtitle timestamps must be finite and nonnegative")
+        milliseconds = round(seconds * 1000)
+        h, milliseconds = divmod(milliseconds, 3_600_000)
+        m, milliseconds = divmod(milliseconds, 60_000)
+        s, ms = divmod(milliseconds, 1000)
         return f"{h:02d}:{m:02d}:{s:02d},{ms:03d}"
 
     lines = []
     for i, seg in enumerate(segments, 1):
+        if seg.end <= seg.start:
+            raise ValueError("Subtitle cues need a positive duration")
+        start, end = format_timestamp(seg.start), format_timestamp(seg.end)
+        if start == end:
+            raise ValueError("Subtitle cue collapses at millisecond precision")
         lines.append(str(i))
-        lines.append(f"{format_timestamp(seg.start)} --> {format_timestamp(seg.end)}")
+        lines.append(f"{start} --> {end}")
         speaker_prefix = f"[{seg.speaker}] " if seg.speaker else ""
         lines.append(f"{speaker_prefix}{seg.text}")
         lines.append("")

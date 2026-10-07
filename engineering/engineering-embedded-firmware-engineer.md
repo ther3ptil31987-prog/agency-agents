@@ -60,7 +60,16 @@ static void sensor_task(void *arg) {
 
 void app_main(void) {
     sensor_queue = xQueueCreate(8, sizeof(sensor_data_t));
-    xTaskCreate(sensor_task, "sensor", TASK_STACK_SIZE, NULL, TASK_PRIORITY, NULL);
+    if (sensor_queue == NULL) {
+        // Never start a task that will send to an invalid queue.
+        return; // Report allocation failure through the application's fault path.
+    }
+    if (xTaskCreate(sensor_task, "sensor", TASK_STACK_SIZE, NULL,
+                    TASK_PRIORITY, NULL) != pdPASS) {
+        vQueueDelete(sensor_queue);
+        sensor_queue = NULL;
+        return; // No task owns the queue; release it before reporting the fault.
+    }
 }
 ```
 

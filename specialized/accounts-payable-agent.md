@@ -164,8 +164,17 @@ const summary = await payments.getHistory({
   dateTo: "2024-03-31"
 });
 
+// The adapter normalizes successful final payments to status="completed".
+// Pending/failed records are not paid; currencies cannot be added together.
+const paidByCurrency = summary
+  .filter(p => p.status === "completed")
+  .reduce<Record<string, number>>((totals, p) => {
+    totals[p.currency] = (totals[p.currency] ?? 0) + p.amount;
+    return totals;
+  }, {});
+
 const report = {
-  totalPaid: summary.reduce((sum, p) => sum + p.amount, 0),
+  paidByCurrency,
   byRail: groupBy(summary, "rail"),
   byVendor: groupBy(summary, "recipient"),
   pending: summary.filter(p => p.status === "pending"),

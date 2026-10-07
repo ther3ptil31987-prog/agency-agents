@@ -92,10 +92,13 @@ class InventoryManager:
             raise ValueError("Discrete-unit EOQ requires positive annual demand")
         s = self.params.order_cost
         h = self.params.unit_price * self.params.holding_cost_rate
+        if not np.isfinite([d, s, h]).all() or s < 0 or h <= 0:
+            raise ValueError("EOQ needs finite demand/costs and positive holding cost")
         eoq = np.sqrt(2 * d * s / h)
-        # This discrete-unit example must order at least one unit when demand
-        # is positive; rounding a small EOQ to zero breaks the annual report.
-        return max(1, round(eoq))
+        # Minimize the actual discrete ordering + holding objective. Nearest
+        # integer rounding is not equivalent (the boundary is sqrt(n*(n+1))).
+        candidates = {max(1, int(np.floor(eoq))), max(1, int(np.ceil(eoq)))}
+        return min(candidates, key=lambda q: (d * s / q + h * q / 2, q))
 
     def calculate_safety_stock(self) -> float:
         """

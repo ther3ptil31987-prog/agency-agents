@@ -64,9 +64,9 @@ WITH budget_actuals AS (
     actual_amount,
     DATE_TRUNC('quarter', date) as quarter,
     budget_amount - actual_amount as variance,
-    (actual_amount - budget_amount) / budget_amount * 100 as variance_percentage
+    (actual_amount - budget_amount) * 100.0 / NULLIF(budget_amount, 0) as variance_percentage
   FROM financial_data 
-  WHERE fiscal_year = YEAR(CURRENT_DATE())
+  WHERE fiscal_year = EXTRACT(YEAR FROM CURRENT_DATE)
 ),
 department_summary AS (
   SELECT 
@@ -75,7 +75,8 @@ department_summary AS (
     SUM(budget_amount) as total_budget,
     SUM(actual_amount) as total_actual,
     SUM(variance) as total_variance,
-    AVG(variance_percentage) as avg_variance_pct
+    (SUM(actual_amount) - SUM(budget_amount)) * 100.0 /
+      NULLIF(SUM(budget_amount), 0) as variance_pct
   FROM budget_actuals
   GROUP BY department, quarter
 )
@@ -85,10 +86,11 @@ SELECT
   total_budget,
   total_actual,
   total_variance,
-  avg_variance_pct,
+  variance_pct,
   CASE 
-    WHEN ABS(avg_variance_pct) <= 5 THEN 'On Track'
-    WHEN avg_variance_pct > 5 THEN 'Over Budget'
+    WHEN variance_pct IS NULL THEN 'No Budget Baseline'
+    WHEN ABS(variance_pct) <= 5 THEN 'On Track'
+    WHEN variance_pct > 5 THEN 'Over Budget'
     ELSE 'Under Budget'
   END as budget_status,
   total_budget - total_actual as remaining_budget
@@ -145,13 +147,14 @@ class CashFlowManager:
                 'forecasted_payments': forecasted_payments,
                 'net_cash_flow': net_flow,
                 'cumulative_cash': cumulative_cash,
-                'confidence_interval_low': net_flow * 0.85,
-                'confidence_interval_high': net_flow * 1.15
+                # Illustrative +/-15% scenarios, not a statistical confidence interval.
+                'scenario_low': net_flow - abs(net_flow) * 0.15,
+                'scenario_high': net_flow + abs(net_flow) * 0.15
             })
         
         return pd.DataFrame(rows, columns=[
             'date', 'forecasted_receipts', 'forecasted_payments', 'net_cash_flow',
-            'cumulative_cash', 'confidence_interval_low', 'confidence_interval_high'
+            'cumulative_cash', 'scenario_low', 'scenario_high'
         ])
     
     def identify_cash_flow_risks(self, forecast_df):

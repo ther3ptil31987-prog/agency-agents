@@ -246,9 +246,13 @@ class ThemeManager {
     const toggle = document.querySelector('.theme-toggle');
     if (toggle) {
       toggle.addEventListener('click', (e) => {
-        if (e.target.matches('.theme-toggle-option')) {
-          const newTheme = e.target.dataset.theme;
-          this.applyTheme(newTheme);
+        const option = e.target instanceof Element
+          ? e.target.closest('.theme-toggle-option') : null;
+        if (option && toggle.contains(option)) {
+          const newTheme = option.dataset.theme;
+          if (['system', 'light', 'dark'].includes(newTheme)) {
+            this.applyTheme(newTheme);
+          }
         }
       });
     }

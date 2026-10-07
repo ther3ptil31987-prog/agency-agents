@@ -160,7 +160,7 @@ class SupportAnalytics:
         # Quality metrics
         self.metrics['first_contact_resolution_rate'] = (
             len(self.data[self.data['contacts_to_resolution'] == 1]) / 
-            len(self.data) * 100
+            len(self.data) * 100 if len(self.data) else None
         )
         
         self.metrics['customer_satisfaction_score'] = self.data['csat_score'].mean()
@@ -237,7 +237,8 @@ class SupportAnalytics:
             })
         
         # First contact resolution recommendations
-        if self.metrics['first_contact_resolution_rate'] < 80:
+        if (self.metrics['first_contact_resolution_rate'] is not None and
+                self.metrics['first_contact_resolution_rate'] < 80):
             recommendations.append({
                 'area': 'Resolution Efficiency',
                 'issue': f"First contact resolution rate is {self.metrics['first_contact_resolution_rate']:.1f}%",

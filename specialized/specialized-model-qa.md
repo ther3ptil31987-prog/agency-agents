@@ -151,6 +151,12 @@ def discrimination_report(y_true: pd.Series, y_score: pd.Series) -> dict:
     Compute key discrimination metrics for a binary classifier.
     Returns AUC, Gini coefficient, and KS statistic.
     """
+    if y_true.empty or not y_true.index.equals(y_score.index):
+        raise ValueError("Discrimination requires nonempty, aligned observations")
+    if not y_true.isin([0, 1]).all() or y_true.nunique() != 2:
+        raise ValueError("Discrimination requires both binary outcome classes")
+    if not np.isfinite(y_score.to_numpy(dtype=float)).all():
+        raise ValueError("Discrimination scores must be finite")
     auc = roc_auc_score(y_true, y_score)
     gini = 2 * auc - 1
     ks_stat, ks_pval = ks_2samp(

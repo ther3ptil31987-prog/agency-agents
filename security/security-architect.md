@@ -124,7 +124,7 @@ When reviewing any system, always ask:
 
 from fastapi import FastAPI, Depends, HTTPException, status, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 import re
@@ -136,6 +136,7 @@ limiter = Limiter(key_func=get_remote_address)
 
 class UserInput(BaseModel):
     """Strict input validation — reject anything unexpected."""
+    model_config = ConfigDict(extra="forbid")
     username: str = Field(..., min_length=3, max_length=30)
     email: str = Field(..., max_length=254)
 

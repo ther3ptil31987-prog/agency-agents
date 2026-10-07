@@ -144,6 +144,18 @@ def reconstruct_thread(messages):
     if len(set(message_ids)) != len(message_ids):
         raise ValueError("Duplicate Message-ID: resolve identity before reconstruction")
 
+    parents = {msg["message_id"]: msg["in_reply_to"] for msg in messages}
+    checked = set()
+    for start in parents:
+        path = set()
+        current = start
+        while current in parents and current not in checked:
+            if current in path:
+                raise ValueError("Cyclic In-Reply-To headers: quarantine before reconstruction")
+            path.add(current)
+            current = parents[current]
+        checked.update(path)
+
     graph = {}
     for msg in messages:
         parent_id = msg["in_reply_to"]

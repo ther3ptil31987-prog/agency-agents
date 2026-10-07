@@ -182,7 +182,17 @@ class ToolEvaluator:
         
         optional_avg = np.mean(optional_scores) if optional_scores else 0
         
-        final_score = (required_avg * 0.8) + (optional_avg * 0.2)
+        # An absent category is not a failed category: normalize active weights.
+        active_scores = []
+        if feature_scores:
+            active_scores.append((required_avg, 0.8))
+        if optional_scores:
+            active_scores.append((optional_avg, 0.2))
+        if not active_scores:
+            raise ValueError("Define at least one feature before scoring functionality")
+        final_score = sum(score * weight for score, weight in active_scores) / sum(
+            weight for _, weight in active_scores
+        )
         notes = "; ".join(test_notes)
         
         return final_score, notes
